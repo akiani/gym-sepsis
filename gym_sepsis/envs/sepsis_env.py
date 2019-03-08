@@ -3,25 +3,14 @@ from gym.utils import seeding
 from tensorflow import keras
 import numpy as np
 
-STATE_MODEL_DESC = "model/sepsis_states.json"
-STATE_MODEL_WEIGHTS = "model/sepsis_states.h5py"
-
-MORTALITY_MODEL_WEIGHTS = "model/sepsis_mortality.h5py"
-MORTALITY_MODEL_DESC = "model/sepsis_mortality.json"
-
-STARTING_STATES_VALUES = "model/sepsis_starting_stats.npz"
+STATE_MODEL_DESC = "model/sepsis_states.model"
+MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
+STARTING_STATES_VALUES = "model/sepsis_starting_states.npz"
 
 NUM_FEATURES = 46
+NUM_ACTIONS = 24
 
 EPISODE_MEMORY = 10
-
-def load_model(model_path, weights_path):
-    with open(model_path, 'r') as json_file:
-        print("Loading model from %s with weights from %s..." % (model_path, weights_path))
-        loaded_model_json = json_file.read()
-        loaded_model = keras.model_from_json(loaded_model_json)
-        loaded_model.load_weights(weights_path)
-    return loaded_model
 
 
 class SepsisEnv(gym.Env):
@@ -35,18 +24,19 @@ class SepsisEnv(gym.Env):
 
     def __init__(self):
         self.state_idx = 0
-        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES])
-        self.state_model = load_model(STATE_MODEL_DESC, STATE_MODEL_WEIGHTS)
-        self.mortality_model = load_model(MORTALITY_MODEL_DESC, MORTALITY_MODEL_WEIGHTS)
-        self.starting_states = np.loadz(STARTING_STATES_VALUES)['start_states']
+        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES + 1])
+        self.state_model = keras.models.load_model(STATE_MODEL_DESC)
+        self.mortality_model = keras.models.load_model(MORTALITY_MODEL_DESC)
+        self.starting_states = np.load(STARTING_STATES_VALUES)['sepsis_starting_states']
         self.seed()
         self.s = self.starting_states[np.random.randint(0, len(self.starting_states))]
         self.memory[-1 * (self.state_idx % EPISODE_MEMORY) - 1] = self.s
         return
 
     def step(self, action):
-        next_state = self.state_model.predict(self.memory)
-        reward = self.mortality_model.predict(self.memory)
+        next_state = self.state_model.predict(np.expand_dims(self.memory, 0))
+        reward = self.mortality_model.predict(np.expand_dims(self.memory, 0))
+        
         done = reward == [0, 0, 1]
         return next_state, reward, done, {"prob" : 1}
 
