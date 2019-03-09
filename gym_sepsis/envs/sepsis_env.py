@@ -3,6 +3,8 @@ from gym.utils import seeding
 from tensorflow import keras
 import numpy as np
 import os
+from collections import deque 
+
 
 STATE_MODEL_DESC = "model/sepsis_states.model"
 MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
@@ -23,8 +25,9 @@ class SepsisEnv(gym.Env):
     """
     metadata = {'render.modes': ['ansi']}
 
-    def __init__(self, starting_state=None):
+    def __init__(self, starting_state=None, verbose=False):
         module_path = os.path.dirname(__file__)
+        self.verbose = verbose
         self.state_model = keras.models.load_model(os.path.join(module_path, STATE_MODEL_DESC))
         self.mortality_model = keras.models.load_model(os.path.join(module_path, MORTALITY_MODEL_DESC))
         self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
@@ -34,8 +37,9 @@ class SepsisEnv(gym.Env):
 
     def step(self, action):
         # create memory of present
-
-        self.memory[-1 * (self.state_idx % EPISODE_MEMORY) - 1] = np.append(self.s, action)
+        self.memory.append(np.append(self.s, action))
+        if self.verbose:
+            print("running on memory: ", self.memory)
 
         next_state = self.state_model.predict(np.expand_dims(self.memory, 0))
         reward = self.mortality_model.predict(np.expand_dims(self.memory, 0))
@@ -64,11 +68,14 @@ class SepsisEnv(gym.Env):
         self.rewards = []
         self.dones = []
         self.state_idx = 0
-        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES + 1])
+        self.memory = deque([np.zeros(shape=[NUM_FEATURES + 1])] * 10, maxlen=10)
         if starting_state is None:
             self.s = self.starting_states[np.random.randint(0, len(self.starting_states))][:-1]
         else:
             self.s = starting_state
+
+        if self.verbose:
+            print("starting state:", self.s)
         return self.s
 
     def seed(self, seed=None):
