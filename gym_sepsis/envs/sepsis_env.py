@@ -3,8 +3,8 @@ from gym.utils import seeding
 from tensorflow import keras
 import numpy as np
 import os
-from collections import deque 
-
+from collections import deque
+import pandas as pd
 
 STATE_MODEL_DESC = "model/sepsis_states.model"
 MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
@@ -81,3 +81,16 @@ class SepsisEnv(gym.Env):
     def seed(self, seed=None):
         seed = seeding.np_random(seed)
         return [seed]
+
+    def render(self, mode='ansi'):
+        columns = ['ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE',
+                   'BILIRUBIN', 'BUN', 'CHLORIDE', 'CREATININE', 'DiasBP', 'Glucose',
+                   'GLUCOSE', 'HeartRate', 'HEMATOCRIT', 'HEMOGLOBIN', 'INR', 'LACTATE',
+                   'MeanBP', 'PaCO2', 'PLATELET', 'POTASSIUM', 'PT', 'PTT', 'RespRate',
+                   'SODIUM', 'SpO2', 'SysBP', 'TempC', 'WBC', 'age', 'is_male',
+                   'race_white', 'race_black', 'race_hispanic', 'race_other', 'height',
+                   'weight', 'vent', 'sofa', 'lods', 'sirs', 'qsofa', 'qsofa_sysbp_score',
+                   'qsofa_gcs_score', 'qsofa_resprate_score', 'elixhauser_hospital',
+                   'blood_culture_positive', 'action']
+        df = pd.DataFrame(self.memory, columns=columns, index=range(0, 10))
+        print(df)
