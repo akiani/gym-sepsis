@@ -2,6 +2,7 @@ import gym
 from gym.utils import seeding
 from tensorflow import keras
 import numpy as np
+import os
 
 STATE_MODEL_DESC = "model/sepsis_states.model"
 MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
@@ -22,28 +23,52 @@ class SepsisEnv(gym.Env):
     """
     metadata = {'render.modes': ['ansi']}
 
-    def __init__(self):
-        self.state_idx = 0
-        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES + 1])
-        self.state_model = keras.models.load_model(STATE_MODEL_DESC)
-        self.mortality_model = keras.models.load_model(MORTALITY_MODEL_DESC)
-        self.starting_states = np.load(STARTING_STATES_VALUES)['sepsis_starting_states']
+    def __init__(self, starting_state=None):
+        module_path = os.path.dirname(__file__)
+        self.state_model = keras.models.load_model(os.path.join(module_path, STATE_MODEL_DESC))
+        self.mortality_model = keras.models.load_model(os.path.join(module_path, MORTALITY_MODEL_DESC))
+        self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
         self.seed()
-        self.s = self.starting_states[np.random.randint(0, len(self.starting_states))]
-        self.memory[-1 * (self.state_idx % EPISODE_MEMORY) - 1] = self.s
+        self.reset(starting_state=starting_state)
         return
 
     def step(self, action):
+        # create memory of present
+
+        self.memory[-1 * (self.state_idx % EPISODE_MEMORY) - 1] = np.append(self.s, action)
+
         next_state = self.state_model.predict(np.expand_dims(self.memory, 0))
         reward = self.mortality_model.predict(np.expand_dims(self.memory, 0))
-        
-        done = reward == [0, 0, 1]
+
+        reward_categories = ['continue', 'died', 'released']
+        reward_state = reward_categories[np.argmax(reward)]
+
+        reward = 0
+        done = False
+
+        if reward_state == 'died':
+            reward = -15
+            done = True
+        elif reward_state == 'released':
+            reward = 15
+            done = True
+
+        # keep next state in memory
+        self.s = next_state
+        self.state_idx += 1
+        self.rewards.append(reward)
+        self.dones.append(done)
         return next_state, reward, done, {"prob" : 1}
 
-    def reset(self):
-        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES])
-        self.s = self.starting_states[np.random.randint(0, len(self.starting_states))]
-        self.memory[-1 * (self.state_idx % EPISODE_MEMORY) - 1] = self.s
+    def reset(self, starting_state=None):
+        self.rewards = []
+        self.dones = []
+        self.state_idx = 0
+        self.memory = np.zeros(shape=[EPISODE_MEMORY, NUM_FEATURES + 1])
+        if starting_state is None:
+            self.s = self.starting_states[np.random.randint(0, len(self.starting_states))][:-1]
+        else:
+            self.s = starting_state
         return self.s
 
     def seed(self, seed=None):
