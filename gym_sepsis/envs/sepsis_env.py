@@ -5,6 +5,7 @@ import numpy as np
 import os
 from collections import deque
 import pandas as pd
+from gym import spaces
 
 STATE_MODEL_DESC = "model/sepsis_states.model"
 MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
@@ -32,12 +33,17 @@ class SepsisEnv(gym.Env):
         self.mortality_model = keras.models.load_model(os.path.join(module_path, MORTALITY_MODEL_DESC))
         self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
         self.seed()
+        self.action_space = spaces.Discrete(24)
+
+        # use a pixel to represent next state
+        self.observation_space = spaces.Box(low=0, high=24, shape=(46, 1, 1),
+                                            dtype=np.float32)
         self.reset(starting_state=starting_state)
         return
 
     def step(self, action):
         # create memory of present
-        self.memory.append(np.append(self.s, action))
+        self.memory.append(np.append(self.s.reshape((1, 46)), action))
         if self.verbose:
             print("running on memory: ", self.memory)
 
@@ -58,11 +64,11 @@ class SepsisEnv(gym.Env):
             done = True
 
         # keep next state in memory
-        self.s = next_state
+        self.s = next_state.reshape(46, 1, 1)
         self.state_idx += 1
         self.rewards.append(reward)
         self.dones.append(done)
-        return next_state, reward, done, {"prob" : 1}
+        return self.s, reward, done, {"prob" : 1}
 
     def reset(self, starting_state=None):
         self.rewards = []
@@ -73,6 +79,8 @@ class SepsisEnv(gym.Env):
             self.s = self.starting_states[np.random.randint(0, len(self.starting_states))][:-1]
         else:
             self.s = starting_state
+
+        self.s = self.s.reshape(46, 1, 1)
 
         if self.verbose:
             print("starting state:", self.s)
