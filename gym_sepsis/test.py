@@ -1,4 +1,4 @@
-from gym_sepsis.envs.sepsis_env import SepsisEnv
+from envs.sepsis_env import SepsisEnv
 
 try:
     env = SepsisEnv()

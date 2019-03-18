@@ -18,6 +18,11 @@ NUM_ACTIONS = 24
 EPISODE_MEMORY = 10
 
 
+class ObservationSpace(object):
+    def __init__(self, shape):
+        self.shape = shape
+
+
 class SepsisEnv(gym.Env):
     """
     Built from trained models on top of the MIMIC dataset, this
@@ -38,8 +43,7 @@ class SepsisEnv(gym.Env):
         self.action_space = spaces.Discrete(24)
 
         # use a pixel to represent next state
-        self.observation_space = spaces.Box(low=0, high=24, shape=(46, 1, 1),
-                                            dtype=np.float32)
+        self.observation_space = ObservationSpace([1, 1, 46])
         self.reset(starting_state=starting_state)
         return
 
@@ -70,23 +74,25 @@ class SepsisEnv(gym.Env):
                 reward = 15
 
         # keep next state in memory
-        self.s = next_state.reshape(46, 1, 1)
+        self.s = next_state.reshape(1, 1, 46)
         self.state_idx += 1
         self.rewards.append(reward)
         self.dones.append(done)
-        return self.s, reward, done, {"prob" : 1}
+        return self.s, reward, done, {"prob": 1}
 
     def reset(self, starting_state=None):
         self.rewards = []
         self.dones = []
         self.state_idx = 0
-        self.memory = deque([np.zeros(shape=[NUM_FEATURES + 1])] * 10, maxlen=10)
+        self.memory = deque(
+            [np.zeros(shape=[NUM_FEATURES + 1])] * 10, maxlen=10)
         if starting_state is None:
-            self.s = self.starting_states[np.random.randint(0, len(self.starting_states))][:-1]
+            self.s = self.starting_states[np.random.randint(
+                0, len(self.starting_states))][:-1]
         else:
             self.s = starting_state
 
-        self.s = self.s.reshape(46, 1, 1)
+        self.s = self.s.reshape(1, 1, 46)
 
         if self.verbose:
             print("starting state:", self.s)
@@ -97,14 +103,17 @@ class SepsisEnv(gym.Env):
         return [seed]
 
     def render(self, mode='ansi'):
-        columns = ['ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE',
-                   'BILIRUBIN', 'BUN', 'CHLORIDE', 'CREATININE', 'DiasBP', 'Glucose',
-                   'GLUCOSE', 'HeartRate', 'HEMATOCRIT', 'HEMOGLOBIN', 'INR', 'LACTATE',
-                   'MeanBP', 'PaCO2', 'PLATELET', 'POTASSIUM', 'PT', 'PTT', 'RespRate',
-                   'SODIUM', 'SpO2', 'SysBP', 'TempC', 'WBC', 'age', 'is_male',
-                   'race_white', 'race_black', 'race_hispanic', 'race_other', 'height',
-                   'weight', 'vent', 'sofa', 'lods', 'sirs', 'qsofa', 'qsofa_sysbp_score',
-                   'qsofa_gcs_score', 'qsofa_resprate_score', 'elixhauser_hospital',
-                   'blood_culture_positive', 'action']
+        columns = [
+            'ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE', 'BILIRUBIN', 'BUN',
+            'CHLORIDE', 'CREATININE', 'DiasBP', 'Glucose', 'GLUCOSE',
+            'HeartRate', 'HEMATOCRIT', 'HEMOGLOBIN', 'INR', 'LACTATE',
+            'MeanBP', 'PaCO2', 'PLATELET', 'POTASSIUM', 'PT', 'PTT',
+            'RespRate', 'SODIUM', 'SpO2', 'SysBP', 'TempC', 'WBC', 'age',
+            'is_male', 'race_white', 'race_black', 'race_hispanic',
+            'race_other', 'height', 'weight', 'vent', 'sofa', 'lods', 'sirs',
+            'qsofa', 'qsofa_sysbp_score', 'qsofa_gcs_score',
+            'qsofa_resprate_score', 'elixhauser_hospital',
+            'blood_culture_positive', 'action'
+        ]
         df = pd.DataFrame(self.memory, columns=columns, index=range(0, 10))
         print(df)
