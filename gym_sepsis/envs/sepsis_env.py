@@ -7,8 +7,9 @@ from collections import deque
 import pandas as pd
 from gym import spaces
 
-STATE_MODEL_DESC = "model/sepsis_states.model"
-MORTALITY_MODEL_DESC = "model/sepsis_mortality.model"
+STATE_MODEL = "model/sepsis_states.model"
+TERMINATION_MODEL = "model/sepsis_termination.model"
+OUTCOME_MODEL = "model/sepsis_outcome.model"
 STARTING_STATES_VALUES = "model/sepsis_starting_states.npz"
 
 NUM_FEATURES = 46
@@ -34,13 +35,10 @@ class SepsisEnv(gym.Env):
     def __init__(self, starting_state=None, verbose=False):
         module_path = os.path.dirname(__file__)
         self.verbose = verbose
-        self.state_model = keras.models.load_model(
-            os.path.join(module_path, STATE_MODEL_DESC))
-        self.mortality_model = keras.models.load_model(
-            os.path.join(module_path, MORTALITY_MODEL_DESC))
-        self.starting_states = np.load(
-            os.path.join(module_path,
-                         STARTING_STATES_VALUES))['sepsis_starting_states']
+        self.state_model = keras.models.load_model(os.path.join(module_path, STATE_MODEL))
+        self.termination_model = keras.models.load_model(os.path.join(module_path, TERMINATION_MODEL))
+        self.outcome_model = keras.models.load_model(os.path.join(module_path, OUTCOME_MODEL))
+        self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
         self.seed()
         self.action_space = spaces.Discrete(24)
 
@@ -56,20 +54,24 @@ class SepsisEnv(gym.Env):
             print("running on memory: ", self.memory)
 
         next_state = self.state_model.predict(np.expand_dims(self.memory, 0))
-        reward = self.mortality_model.predict(np.expand_dims(self.memory, 0))
+        termination = self.termination_model.predict(np.expand_dims(self.memory, 0))
+        outcome = self.outcome_model.predict(np.expand_dims(self.memory, 0))
 
-        reward_categories = ['continue', 'died', 'released']
-        reward_state = reward_categories[np.argmax(reward)]
+        termination_categories = ['continue', 'done']
+        outcome_categories = ['death', 'release']
+
+        termination_state = termination_categories[np.argmax(termination)]
+        outcome_state = outcome_categories[np.argmax(outcome)]
 
         reward = 0
         done = False
 
-        if reward_state == 'died':
-            reward = -15
+        if termination_state == 'done':
             done = True
-        elif reward_state == 'released':
-            reward = 15
-            done = True
+            if outcome_state == 'death':
+                reward = -15
+            else:
+                reward = 15
 
         # keep next state in memory
         self.s = next_state.reshape(1, 1, 46)
