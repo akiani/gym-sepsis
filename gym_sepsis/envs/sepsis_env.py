@@ -18,6 +18,16 @@ NUM_ACTIONS = 24
 EPISODE_MEMORY = 10
 
 
+features = ['ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE',
+            'BILIRUBIN', 'BUN', 'CHLORIDE', 'CREATININE', 'DiasBP', 'Glucose',
+            'GLUCOSE', 'HeartRate', 'HEMATOCRIT', 'HEMOGLOBIN', 'INR', 'LACTATE',
+            'MeanBP', 'PaCO2', 'PLATELET', 'POTASSIUM', 'PT', 'PTT', 'RespRate',
+            'SODIUM', 'SpO2', 'SysBP', 'TempC', 'WBC', 'age', 'is_male',
+            'race_white', 'race_black', 'race_hispanic', 'race_other', 'height',
+            'weight', 'vent', 'sofa', 'lods', 'sirs', 'qsofa', 'qsofa_sysbp_score',
+            'qsofa_gcs_score', 'qsofa_resprate_score', 'elixhauser_hospital',
+            'blood_culture_positive', 'action', 'state_idx']
+
 class SepsisEnv(gym.Env):
     """
     Built from trained models on top of the MIMIC dataset, this
@@ -38,7 +48,7 @@ class SepsisEnv(gym.Env):
         self.action_space = spaces.Discrete(24)
 
         # use a pixel to represent next state
-        self.observation_space = spaces.Box(low=0, high=NUM_ACTIONS, shape=(NUM_FEATURES, 1, 1),
+        self.observation_space = spaces.Box(low=0, high=NUM_ACTIONS, shape=(NUM_FEATURES-2, 1, 1),
                                             dtype=np.float32)
         self.reset(starting_state=starting_state)
         return
@@ -49,9 +59,19 @@ class SepsisEnv(gym.Env):
         if self.verbose:
             print("running on memory: ", self.memory)
 
-        next_state = self.state_model.predict(np.expand_dims(self.memory, 0)[:, :, :-1])
-        termination = self.termination_model.predict(np.expand_dims(self.memory, 0))
-        outcome = self.outcome_model.predict(np.expand_dims(self.memory, 0))
+        memory_array = np.expand_dims(self.memory, 0)
+        next_state = self.state_model.predict(memory_array[:, :, :-1])
+
+        # overwrite constant variables (these should't change during episode)
+        constants = ['age', 'race_white', 'race_black', 'race_hispanic',
+                     'race_other', 'height', 'weight']
+        for constant in constants:
+            idx = features.index(constant)
+            val = self.state_0[idx]
+            next_state[0, idx] = val
+
+        termination = self.termination_model.predict(memory_array)
+        outcome = self.outcome_model.predict(memory_array)
 
         termination_categories = ['continue', 'done']
         outcome_categories = ['death', 'release']
@@ -81,13 +101,13 @@ class SepsisEnv(gym.Env):
         self.dones = []
         self.state_idx = 0
         self.memory = deque([np.zeros(shape=[NUM_FEATURES])] * 10, maxlen=10)
-
         if starting_state is None:
             self.s = self.starting_states[np.random.randint(0, len(self.starting_states))][:-1]
         else:
             self.s = starting_state
 
-        self.s = self.s.reshape(NUM_FEATURES -2, 1, 1)
+        self.s = self.s.reshape(NUM_FEATURES - 2, 1, 1)
+        self.state_0 = np.copy(self.s)
 
         if self.verbose:
             print("starting state:", self.s)
@@ -98,14 +118,5 @@ class SepsisEnv(gym.Env):
         return [seed]
 
     def render(self, mode='ansi'):
-        columns = ['ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE',
-                   'BILIRUBIN', 'BUN', 'CHLORIDE', 'CREATININE', 'DiasBP', 'Glucose',
-                   'GLUCOSE', 'HeartRate', 'HEMATOCRIT', 'HEMOGLOBIN', 'INR', 'LACTATE',
-                   'MeanBP', 'PaCO2', 'PLATELET', 'POTASSIUM', 'PT', 'PTT', 'RespRate',
-                   'SODIUM', 'SpO2', 'SysBP', 'TempC', 'WBC', 'age', 'is_male',
-                   'race_white', 'race_black', 'race_hispanic', 'race_other', 'height',
-                   'weight', 'vent', 'sofa', 'lods', 'sirs', 'qsofa', 'qsofa_sysbp_score',
-                   'qsofa_gcs_score', 'qsofa_resprate_score', 'elixhauser_hospital',
-                   'blood_culture_positive', 'action', 'state_idx']
-        df = pd.DataFrame(self.memory, columns=columns, index=range(0, 10))
+        df = pd.DataFrame(self.memory, columns=features, index=range(0, 10))
         print(df)
