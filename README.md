@@ -1,5 +1,5 @@
-# gym-sepsis
-Open AI Gym Environment For MIMIC Dataset Sepsis Patient
+# GYMIC
+An OpenAI Gym Environment for Simulating Sepsis Treatment for ICU Patients
 
 For more information about this project please see our [poster](https://github.com/akiani/rlsepsis234/blob/master/poster.pdf) or [writeup](https://github.com/akiani/rlsepsis234/blob/master/writeup.pdf).
 
