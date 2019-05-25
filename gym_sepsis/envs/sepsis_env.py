@@ -36,6 +36,7 @@ features = ['ALBUMIN', 'ANION GAP', 'BANDS', 'BICARBONATE',
             'qsofa_gcs_score', 'qsofa_resprate_score', 'elixhauser_hospital',
             'blood_culture_positive', 'action', 'state_idx']
 
+
 class SepsisEnv(gym.Env):
     """
     Built from trained models on top of the MIMIC dataset, this
@@ -131,7 +132,7 @@ class SepsisEnv(gym.Env):
         print(df)
 
 
-class SepsisEnvVariational(SepsisEnv):
+class SepsisEnvVariational(gym.Env):
     """
     Built from trained models on top of the MIMIC dataset, this
     Environment simulates the behavior of the Sepsis patient
@@ -154,7 +155,7 @@ class SepsisEnvVariational(SepsisEnv):
         self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
         self.seed()
         self.action_space = spaces.Discrete(24)
-        self.observation_space = spaces.Box(low=0, high=NUM_ACTIONS, shape=(NUM_FEATURES_VAE-2, 1, 1),
+        self.observation_space = spaces.Box(low=0, high=NUM_ACTIONS, shape=(NUM_FEATURES - 2, 1, 1),
                                             dtype=np.float32)
         self.reset(starting_state=starting_state)
         return
@@ -244,3 +245,7 @@ class SepsisEnvVariational(SepsisEnv):
     def render(self, mode='ansi'):
         df = pd.DataFrame(self.memory, index=range(0, 10))
         print(df)
+
+    def seed(self, seed=None):
+        seed = seeding.np_random(seed)
+        return [seed]
