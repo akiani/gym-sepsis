@@ -230,14 +230,16 @@ class SepsisEnvVariational(SepsisEnv):
         if starting_state is None:
             self.s = self.encode_state(self.starting_states[np.random.randint(0, len(self.starting_states))][:-1].reshape(1, 46))
         else:
-            self.s = self.encode_state(starting_state)
+            self.s = self.encode_state(starting_state.reshape(1, 46))
+            print("hello")
 
         self.s = self.s.reshape(NUM_FEATURES_VAE - 2, 1, 1)
         self.state_0 = np.copy(self.s)
 
         if self.verbose:
             print("starting state:", self.s)
-        return self.s
+        decoded_state = self.decode_state(self.s.reshape(1, 30))
+        return decoded_state
 
     def render(self, mode='ansi'):
         df = pd.DataFrame(self.memory, index=range(0, 10))
