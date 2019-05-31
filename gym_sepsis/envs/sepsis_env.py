@@ -20,6 +20,12 @@ TERMINATION_MODEL_VAE = "model/sepsis_termination_vae.model"
 OUTCOME_MODEL_VAE = "model/sepsis_outcome_vae.model"
 VAE_MODEL = "model/vae_noklloss.model"
 
+# with small vae
+STATE_MODEL_VAE_SMALL = "model/sepsis_states_vae_smaller.model"
+TERMINATION_MODEL_VAE_SMALL = "model/sepsis_termination_vae_small.model"
+OUTCOME_MODEL_VAE_SMALL = "model/sepsis_outcome_vae_small.model"
+VAE_MODEL_SMALL = "model/vae_noklloss_small.model"
+
 NUM_FEATURES_VAE = 32 # 46 + action + state index
 NUM_FEATURES = 48  # 46 + action + state index
 NUM_ACTIONS = 24
@@ -248,3 +254,24 @@ class SepsisEnvVariational(gym.Env):
     def seed(self, seed=None):
         seed = seeding.np_random(seed)
         return [seed]
+
+
+class SepsisEnvVariationalSmall(SepsisEnvVariational):
+    def __init__(self, starting_state=None, verbose=False):
+        module_path = os.path.dirname(__file__)
+        self.verbose = verbose
+        self.vae_model = keras.models.load_model(os.path.join(module_path, VAE_MODEL_SMALL), compile=False)
+        self.encoder_model = self.get_encoder(self.vae_model)
+        self.decoder_model = self.get_decoder(self.vae_model)
+        self.state_model = keras.models.load_model(os.path.join(module_path, STATE_MODEL_VAE_SMALL))
+        self.termination_model = keras.models.load_model(os.path.join(module_path, TERMINATION_MODEL_VAE_SMALL))
+        self.outcome_model = keras.models.load_model(os.path.join(module_path, OUTCOME_MODEL_VAE_SMALL))
+        self.starting_states = np.load(os.path.join(module_path, STARTING_STATES_VALUES))['sepsis_starting_states']
+        self.seed()
+        self.action_space = spaces.Discrete(24)
+        self.observation_space = spaces.Box(low=0, high=NUM_ACTIONS, shape=(NUM_FEATURES - 2, 1, 1),
+                                            dtype=np.float32)
+        self.reset(starting_state=starting_state)
+        return
+    
+    

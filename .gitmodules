@@ -1,0 +1,3 @@
+[submodule "keras-mdn-layer"]
+	path = keras-mdn-layer
+	url = git@github.com:cpmpercussion/keras-mdn-layer.git
