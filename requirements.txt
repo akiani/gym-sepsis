@@ -92,3 +92,4 @@ virtualenvwrapper==4.8.4
 wcwidth==0.1.7
 Werkzeug==0.14.1
 widgetsnbextension==3.4.2
+keras
